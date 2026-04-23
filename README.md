@@ -4,7 +4,7 @@ TypeScript-first XLSX parser/editor/generator for Node.js.
 
 ## Status
 
-Early-stage scaffold. Core domain models and API surface are in place; XLSX parse/write engine implementation is intentionally pending.
+Early-stage implementation. Core domain models and XLSX read/write are available, with roundtrip support for existing workbook structures.
 
 ## Features
 
@@ -15,24 +15,29 @@ Early-stage scaffold. Core domain models and API surface are in place; XLSX pars
 - Class-based domain model:
   - `Workbook`, `Worksheet`, `Cell`, `Table`, `CellRange`
   - `XlsxDocument`, `XlsxParser`, `XlsxWriter`
+- Buffer + path IO support (`load` from bytes/path, `save` to bytes/path)
+- Roundtrip preservation of existing chart/drawing parts when loading and re-saving files
 - Strict TypeScript + ESLint + Prettier setup
 - Unit tests using Node built-in test runner (`node:test`)
 - GitHub Actions release flow for GitHub Packages + GitHub Releases
+
+## Chart Support
+
+- **Preserved on roundtrip:** existing charts/drawings remain in place when a workbook is loaded and saved.
+- **Creation/editing:** creating brand new charts or editing chart definitions is **not implemented yet**.
 
 ## Installation
 
 From GitHub Packages:
 
 ```bash
-npm install @OWNER/xlsx-js
+npm install @isergeevv/xlsx-js
 ```
-
-> Replace `OWNER` with the GitHub organization/user that publishes this package.
 
 ## Quick Example
 
 ```ts
-import { XlsxDocument } from "@OWNER/xlsx-js";
+import { XlsxDocument } from "@isergeevv/xlsx-js";
 
 const xlsx = new XlsxDocument();
 const workbook = xlsx.createWorkbook();
@@ -41,9 +46,8 @@ const sheet = workbook.addWorksheet("Sheet1");
 sheet.setCellValue(0, 0, "Hello");
 sheet.setCellValue(1, 0, 123);
 
-// Not implemented yet in this scaffold:
-// const bytes = await xlsx.save(workbook);
-// const loaded = await xlsx.load(bytes);
+const bytes = await xlsx.save(workbook);
+const loaded = await xlsx.load(bytes);
 ```
 
 ## Development
@@ -72,7 +76,7 @@ npm test
 Releases are tag-driven through `.github/workflows/release.yml`.
 
 1. Update `package.json` version (must match release tag version).
-2. Ensure package name is owner-scoped (example: `@OWNER/xlsx-js`).
+2. Ensure package name is isergeevv-scoped (example: `@isergeevv/xlsx-js`).
 3. Push tag: `vX.Y.Z` (example: `v0.1.0`).
 4. GitHub Actions will:
    - run lint/build/typecheck/tests
