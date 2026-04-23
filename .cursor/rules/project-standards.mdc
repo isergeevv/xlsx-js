@@ -1,0 +1,15 @@
+---
+description: Core project conventions for xlsx-js
+alwaysApply: true
+---
+
+# xlsx-js Project Standards
+
+- Keep this package as a library-first setup with `type: module`.
+- Build outputs must remain:
+  - ESM: `dist/index.js`
+  - CJS: `dist/index.cjs`
+  - Types: `dist/index.d.ts`
+- Source files live under `src/`.
+- Do not add implementation placeholders beyond minimal valid exports unless requested.
+- If build or structure conventions change, update this rule file in the same change set.
