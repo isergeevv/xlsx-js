@@ -15,6 +15,6 @@ alwaysApply: true
 - Private fields use underscore naming (example: `_name`) and are exposed through getters.
 - Keep ESLint passing, including private member underscore naming rules.
 - Keep Prettier formatting consistent with repository `.prettierrc.json`.
-- Releases are tag-driven (`vX.Y.Z`) and must keep `package.json` version aligned with the tag.
+- Releases are tag-driven (`vX.Y.Z`) and publish to GitHub Packages with tag/version alignment.
 - Do not add implementation placeholders beyond minimal valid exports unless requested.
 - If build or structure conventions change, update this rule file in the same change set.
