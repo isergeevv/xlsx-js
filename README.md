@@ -18,7 +18,7 @@ Early-stage implementation. Core domain models and XLSX read/write are available
 - Buffer + path IO support (`load` from bytes/path, `save` to bytes/path)
 - Roundtrip preservation of existing chart/drawing parts when loading and re-saving files
 - Strict TypeScript + ESLint + Prettier setup
-- Unit tests using Node built-in test runner (`node:test`)
+- Unit tests using Node built-in test runner (`node:test`), including focused model behavior tests in `test/models.test.mjs`
 - GitHub Actions release flow for GitHub Packages + GitHub Releases
 
 ## Chart Support
