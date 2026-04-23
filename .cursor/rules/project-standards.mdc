@@ -11,5 +11,9 @@ alwaysApply: true
   - CJS: `dist/index.cjs`
   - Types: `dist/index.d.ts`
 - Source files live under `src/`.
+- Prefer private class state over public mutable fields.
+- Private fields use underscore naming (example: `_name`) and are exposed through getters.
+- Keep ESLint passing, including private member underscore naming rules.
+- Keep Prettier formatting consistent with repository `.prettierrc.json`.
 - Do not add implementation placeholders beyond minimal valid exports unless requested.
 - If build or structure conventions change, update this rule file in the same change set.
