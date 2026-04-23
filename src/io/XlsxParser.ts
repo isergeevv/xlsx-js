@@ -34,6 +34,7 @@ export class XlsxParser {
           worksheet.getCell(styleEntry.row, styleEntry.col).setStyle(styleEntry.style);
         }
       }
+      worksheet.markClean();
     }
 
     setWorkbookSnapshot(workbook, {

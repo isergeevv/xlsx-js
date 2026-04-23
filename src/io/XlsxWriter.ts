@@ -20,6 +20,9 @@ export class XlsxWriter {
       if (!path) {
         continue;
       }
+      if (snapshot && !worksheet.isDirty) {
+        continue;
+      }
       const baseXml = sheetXmlByName.get(worksheet.name);
       const xml = this._worksheetXml(worksheet, baseXml);
       baseEntries.set(path, encodeText(xml));

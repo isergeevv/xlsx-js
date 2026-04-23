@@ -4,9 +4,11 @@ export class Cell {
   private _value: CellPrimitive;
   private _formula?: CellFormula;
   private _style?: CellStyle;
+  private readonly _onChange?: () => void;
 
-  constructor(value: CellPrimitive = null) {
+  constructor(value: CellPrimitive = null, onChange?: () => void) {
     this._value = value;
+    this._onChange = onChange;
   }
 
   public get value(): CellPrimitive {
@@ -24,16 +26,19 @@ export class Cell {
   public setValue(value: CellPrimitive): this {
     this._value = value;
     this._formula = undefined;
+    this._onChange?.();
     return this;
   }
 
   public setFormula(formulaExpression: string, result?: CellPrimitive): this {
     this._formula = { expression: formulaExpression, result };
+    this._onChange?.();
     return this;
   }
 
   public setStyle(style: CellStyle): this {
     this._style = { ...style };
+    this._onChange?.();
     return this;
   }
 }

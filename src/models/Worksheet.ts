@@ -13,10 +13,12 @@ export class Worksheet {
   private _name: string;
   private readonly _cells = new Map<string, Cell>();
   private readonly _tables = new Map<string, Table>();
+  private _dirty: boolean;
 
   constructor(options: WorksheetOptions) {
     this._id = options.id ?? `ws_${Date.now()}_${Math.floor(Math.random() * 1_000_000)}`;
     this._name = options.name;
+    this._dirty = false;
   }
 
   public get id(): string {
@@ -27,8 +29,18 @@ export class Worksheet {
     return this._name;
   }
 
+  public get isDirty(): boolean {
+    return this._dirty;
+  }
+
+  public markClean(): this {
+    this._dirty = false;
+    return this;
+  }
+
   public rename(nextName: string): this {
     this._name = nextName;
+    this._dirty = true;
     return this;
   }
 
@@ -39,7 +51,9 @@ export class Worksheet {
       return existing;
     }
 
-    const created = new Cell();
+    const created = new Cell(null, () => {
+      this._dirty = true;
+    });
     this._cells.set(key, created);
     return created;
   }
@@ -50,7 +64,11 @@ export class Worksheet {
   }
 
   public deleteCell(row: number, col: number): boolean {
-    return this._cells.delete(Worksheet._key({ row, col }));
+    const deleted = this._cells.delete(Worksheet._key({ row, col }));
+    if (deleted) {
+      this._dirty = true;
+    }
+    return deleted;
   }
 
   public addTable(options: TableOptions): Table {
@@ -59,6 +77,7 @@ export class Worksheet {
     }
     const table = new Table(options);
     this._tables.set(table.name, table);
+    this._dirty = true;
     return table;
   }
 
@@ -67,7 +86,11 @@ export class Worksheet {
   }
 
   public removeTable(name: string): boolean {
-    return this._tables.delete(name);
+    const removed = this._tables.delete(name);
+    if (removed) {
+      this._dirty = true;
+    }
+    return removed;
   }
 
   public listTables(): Table[] {
