@@ -89,4 +89,4 @@ Releases are tag-driven through `.github/workflows/release.yml`.
 
 ## License
 
-ISC
+[MIT](LICENSE)
