@@ -1,7 +1,7 @@
 {
   "name": "xlsx-js",
-  "version": "1.0.0",
-  "description": "Starter scaffold for a Node TypeScript library.",
+  "version": "0.0.0",
+  "description": "TypeScript XLSX parser, editor, and generator for Node.js.",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
