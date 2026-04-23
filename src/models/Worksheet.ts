@@ -2,6 +2,12 @@ import { Cell } from "./Cell";
 import { Table } from "./Table";
 import type { CellAddress, CellPrimitive, TableOptions, WorksheetOptions } from "../types";
 
+export interface WorksheetCellEntry {
+  row: number;
+  col: number;
+  cell: Cell;
+}
+
 export class Worksheet {
   private readonly _id: string;
   private _name: string;
@@ -66,6 +72,17 @@ export class Worksheet {
 
   public listTables(): Table[] {
     return [...this._tables.values()];
+  }
+
+  public listCells(): WorksheetCellEntry[] {
+    return [...this._cells.entries()].map(([key, cell]) => {
+      const [rowText, colText] = key.split(":");
+      return {
+        row: Number(rowText),
+        col: Number(colText),
+        cell
+      };
+    });
   }
 
   private static _key(address: CellAddress): string {

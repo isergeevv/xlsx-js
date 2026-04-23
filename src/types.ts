@@ -45,3 +45,5 @@ export interface LoadWorkbookOptions {
 export interface SaveWorkbookOptions {
   includeStyles?: boolean;
 }
+
+export type WorkbookInput = Uint8Array | string;

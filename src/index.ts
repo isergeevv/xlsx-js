@@ -16,6 +16,7 @@ export type {
   LoadWorkbookOptions,
   SaveWorkbookOptions,
   TableOptions,
+  WorkbookInput,
   WorkbookMetadata,
   WorksheetOptions
 } from "./types";

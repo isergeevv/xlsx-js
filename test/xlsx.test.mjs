@@ -1,5 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, rm, readFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 
 import {
   Cell,
@@ -102,4 +105,53 @@ test("XlsxDocument delegates load/save operations", async () => {
 
   const saved = await document.save(workbook, { includeStyles: true });
   assert.deepEqual([...saved], [1, 2, 3]);
+});
+
+test("XlsxDocument saves and loads workbook from buffer", async () => {
+  const document = new XlsxDocument();
+  const workbook = document.createWorkbook();
+  const sheet = workbook.addWorksheet("Roundtrip");
+  sheet.setCellValue(0, 0, "Hello");
+  sheet.setCellValue(1, 0, 123);
+  sheet.getCell(2, 0).setFormula("A2*2", 246);
+  sheet.getCell(0, 1).setStyle({ bold: true, fontName: "Calibri" });
+
+  const bytes = await document.save(workbook, { includeStyles: true });
+  assert.equal(bytes instanceof Uint8Array, true);
+  assert.equal(bytes.length > 0, true);
+
+  const loaded = await document.load(bytes, { preserveStyles: true });
+  const loadedSheet = loaded.getWorksheet("Roundtrip");
+  assert.ok(loadedSheet);
+  assert.equal(loadedSheet?.getCell(0, 0).value, "Hello");
+  assert.equal(loadedSheet?.getCell(1, 0).value, 123);
+  assert.equal(loadedSheet?.getCell(2, 0).formula?.expression, "A2*2");
+  assert.equal(loadedSheet?.getCell(2, 0).formula?.result, 246);
+  assert.equal(loadedSheet?.getCell(0, 1).style?.bold, true);
+});
+
+test("XlsxDocument saves and loads workbook by file path", async () => {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "xlsx-js-"));
+  const filePath = path.join(tmpDir, "workbook.xlsx");
+
+  try {
+    const document = new XlsxDocument();
+    const workbook = document.createWorkbook();
+    const sheet = workbook.addWorksheet("FilePath");
+    sheet.setCellValue(0, 0, "FromPath");
+    sheet.addTable({ name: "Table1", range: "A1:B3" });
+
+    await document.saveToPath(filePath, workbook, { includeStyles: true });
+    const writtenBytes = await readFile(filePath);
+    assert.equal(writtenBytes.length > 0, true);
+
+    const loaded = await document.load(filePath, { preserveStyles: true });
+    const loadedSheet = loaded.getWorksheet("FilePath");
+    assert.ok(loadedSheet);
+    assert.equal(loadedSheet?.getCell(0, 0).value, "FromPath");
+    assert.equal(loadedSheet?.listTables().length, 1);
+    assert.equal(loadedSheet?.getTable("Table1")?.range, "A1:B3");
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true });
+  }
 });
