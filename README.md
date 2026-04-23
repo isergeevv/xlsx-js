@@ -24,6 +24,7 @@ Early-stage implementation. Core domain models and XLSX read/write are available
 ## Chart Support
 
 - **Preserved on roundtrip:** existing charts/drawings remain in place when a workbook is loaded and saved.
+- **Empty sheet chart safety:** chart/drawing references are preserved even when source worksheets use `<sheetData/>`.
 - **Creation/editing:** creating brand new charts or editing chart definitions is **not implemented yet**.
 
 ## Installation

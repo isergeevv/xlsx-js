@@ -58,8 +58,13 @@ export class XlsxWriter {
       .join("");
 
     const sheetDataXml = `<sheetData>${rowXml}</sheetData>`;
-    if (baseXml && /<sheetData[\s\S]*<\/sheetData>/.test(baseXml)) {
-      return baseXml.replace(/<sheetData[\s\S]*<\/sheetData>/, sheetDataXml);
+    if (baseXml) {
+      if (/<sheetData[\s\S]*<\/sheetData>/.test(baseXml)) {
+        return baseXml.replace(/<sheetData[\s\S]*<\/sheetData>/, sheetDataXml);
+      }
+      if (/<sheetData\s*\/>/.test(baseXml)) {
+        return baseXml.replace(/<sheetData\s*\/>/, sheetDataXml);
+      }
     }
 
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
