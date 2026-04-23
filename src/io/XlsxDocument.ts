@@ -20,11 +20,11 @@ export class XlsxDocument {
     return this._parser.parse(input, options);
   }
 
-  public async save(workbook: Workbook, options: SaveWorkbookOptions = {}): Promise<Uint8Array> {
+  public async serialize(workbook: Workbook, options: SaveWorkbookOptions = {}): Promise<Uint8Array> {
     return this._writer.write(workbook, options);
   }
 
-  public async saveToPath(path: string, workbook: Workbook, options: SaveWorkbookOptions = {}): Promise<void> {
+  public async writeToPath(path: string, workbook: Workbook, options: SaveWorkbookOptions = {}): Promise<void> {
     return this._writer.writeToPath(path, workbook, options);
   }
 }

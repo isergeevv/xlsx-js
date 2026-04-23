@@ -15,7 +15,7 @@ Early-stage implementation. Core domain models and XLSX read/write are available
 - Class-based domain model:
   - `Workbook`, `Worksheet`, `Cell`, `Table`, `CellRange`
   - `XlsxDocument`, `XlsxParser`, `XlsxWriter`
-- Buffer + path IO support (`load` from bytes/path, `save` to bytes/path)
+- Buffer + path IO support (`load` from bytes/path, `serialize` to bytes, `writeToPath` to file path)
 - Roundtrip preservation of existing chart/drawing parts when loading and re-saving files
 - Strict TypeScript + ESLint + Prettier setup
 - Unit tests using Node built-in test runner (`node:test`), including focused model behavior tests in `test/models.test.mjs`
@@ -49,7 +49,7 @@ const sheet = workbook.addWorksheet("Sheet1");
 sheet.setCellValue(0, 0, "Hello");
 sheet.setCellValue(1, 0, 123);
 
-const bytes = await xlsx.save(workbook);
+const bytes = await xlsx.serialize(workbook);
 const loaded = await xlsx.load(bytes);
 ```
 

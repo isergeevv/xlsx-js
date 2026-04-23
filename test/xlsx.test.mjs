@@ -80,7 +80,7 @@ test("CellRange converts between A1 strings and addresses", () => {
   assert.equal(range.toA1(), "A1:C3");
 });
 
-test("XlsxDocument delegates load/save operations", async () => {
+test("XlsxDocument delegates load/serialize operations", async () => {
   const workbook = new Workbook();
   workbook.addWorksheet("Sheet1");
 
@@ -104,8 +104,8 @@ test("XlsxDocument delegates load/save operations", async () => {
   const loaded = await document.load(new Uint8Array([10, 20]), { preserveStyles: true });
   assert.equal(loaded, workbook);
 
-  const saved = await document.save(workbook, { includeStyles: true });
-  assert.deepEqual([...saved], [1, 2, 3]);
+  const serialized = await document.serialize(workbook, { includeStyles: true });
+  assert.deepEqual([...serialized], [1, 2, 3]);
 });
 
 test("XlsxDocument saves and loads workbook from buffer", async () => {
@@ -117,7 +117,7 @@ test("XlsxDocument saves and loads workbook from buffer", async () => {
   sheet.getCell(2, 0).setFormula("A2*2", 246);
   sheet.getCell(0, 1).setStyle({ bold: true, fontName: "Calibri" });
 
-  const bytes = await document.save(workbook, { includeStyles: true });
+  const bytes = await document.serialize(workbook, { includeStyles: true });
   assert.equal(bytes instanceof Uint8Array, true);
   assert.equal(bytes.length > 0, true);
 
@@ -142,7 +142,7 @@ test("XlsxDocument saves and loads workbook by file path", async () => {
     sheet.setCellValue(0, 0, "FromPath");
     sheet.addTable({ name: "Table1", range: "A1:B3" });
 
-    await document.saveToPath(filePath, workbook, { includeStyles: true });
+    await document.writeToPath(filePath, workbook, { includeStyles: true });
     const writtenBytes = await readFile(filePath);
     assert.equal(writtenBytes.length > 0, true);
 
@@ -216,7 +216,7 @@ test("Roundtrip preserves existing drawing/chart references", async () => {
   const document = new XlsxDocument();
   const workbook = await document.load(sourceBytes);
   workbook.getWorksheet("ChartSheet")?.setCellValue(0, 0, "after");
-  const outputBytes = await document.save(workbook);
+  const outputBytes = await document.serialize(workbook);
 
   const outZip = await JSZip.loadAsync(outputBytes);
   const sheetXml = await outZip.file("xl/worksheets/sheet1.xml")?.async("string");
@@ -284,7 +284,7 @@ test("Roundtrip preserves drawing when source sheetData is self-closing", async 
   const document = new XlsxDocument();
   const workbook = await document.load(sourceBytes);
   workbook.getWorksheet("ChartSheet")?.setCellValue(0, 0, "after");
-  const outputBytes = await document.save(workbook);
+  const outputBytes = await document.serialize(workbook);
 
   const outZip = await JSZip.loadAsync(outputBytes);
   const sheetXml = await outZip.file("xl/worksheets/sheet1.xml")?.async("string");
@@ -366,7 +366,7 @@ test("No-op roundtrip preserves chart series range and aggregate flag", async ()
   const sourceBytes = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
   const document = new XlsxDocument();
   const workbook = await document.load(sourceBytes);
-  const outputBytes = await document.save(workbook);
+  const outputBytes = await document.serialize(workbook);
   const outZip = await JSZip.loadAsync(outputBytes);
   const outChartXml = await outZip.file("xl/charts/chart1.xml")?.async("string");
 
@@ -397,7 +397,7 @@ test("Chart authoring API creates line and pie charts", async () => {
     series: [{ categories: "Sheet1!A2:A3", values: "Sheet1!B2:B3", name: "Series 1" }]
   });
 
-  const bytes = await document.save(workbook);
+  const bytes = await document.serialize(workbook);
   const zip = await JSZip.loadAsync(bytes);
   const drawingXml = await zip.file("xl/drawings/drawing1.xml")?.async("string");
   const chart1Xml = await zip.file("xl/charts/chart1.xml")?.async("string");
