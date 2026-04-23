@@ -4,29 +4,12 @@ export class CellRange {
   private readonly _start: CellAddress;
   private readonly _end: CellAddress;
 
-  constructor(start: CellAddress, end: CellAddress) {
-    this._start = start;
-    this._end = end;
-  }
-
-  public get start(): CellAddress {
-    return { ...this._start };
-  }
-
-  public get end(): CellAddress {
-    return { ...this._end };
-  }
-
   public static fromA1(range: string): CellRange {
     const [left, right] = range.split(":");
     if (!left || !right) {
       throw new Error(`Invalid A1 range "${range}"`);
     }
     return new CellRange(CellRange._parseAddress(left), CellRange._parseAddress(right));
-  }
-
-  public toA1(): string {
-    return `${CellRange._addressToA1(this._start)}:${CellRange._addressToA1(this._end)}`;
   }
 
   private static _parseAddress(address: string): CellAddress {
@@ -63,5 +46,22 @@ export class CellRange {
       n = Math.floor((n - 1) / 26);
     }
     return out;
+  }
+
+  constructor(start: CellAddress, end: CellAddress) {
+    this._start = start;
+    this._end = end;
+  }
+
+  public get start(): CellAddress {
+    return { ...this._start };
+  }
+
+  public get end(): CellAddress {
+    return { ...this._end };
+  }
+
+  public toA1(): string {
+    return `${CellRange._addressToA1(this._start)}:${CellRange._addressToA1(this._end)}`;
   }
 }

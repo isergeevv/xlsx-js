@@ -5,6 +5,8 @@ import {
   Cell,
   CellRange,
   Chart,
+  EXCEL_MAX_ROW_0BASED,
+  EXCEL_MAX_ROW_1BASED,
   Table,
   Workbook,
   Worksheet
@@ -96,6 +98,36 @@ test("Table: rename rejects empty name", () => {
   assert.throws(() => t.rename("   "), /cannot be empty/);
   assert.throws(() => t.rename(""), /cannot be empty/);
   assert.equal(t.name, "X");
+});
+
+test("Table: addRow appends one row at bottom of range", () => {
+  const t = new Table({ name: "T", range: "A1:B2" });
+  t.addRow();
+  assert.equal(t.range, "A1:B3");
+});
+
+test("Table: addRow with at below table shifts range down", () => {
+  const t = new Table({ name: "T", range: "B3:D5" });
+  t.addRow({ at: 1 });
+  assert.equal(t.range, "B4:D6");
+});
+
+test("Table: addRow with at inside table extends bottom", () => {
+  const t = new Table({ name: "T", range: "A1:C4" });
+  t.addRow({ at: 2 });
+  assert.equal(t.range, "A1:C5");
+});
+
+test("Table: addRow with at after table leaves range unchanged", () => {
+  const t = new Table({ name: "T", range: "A1:B2" });
+  t.addRow({ at: 10 });
+  assert.equal(t.range, "A1:B2");
+});
+
+test("Table: addRow rejects invalid row index", () => {
+  const t = new Table({ name: "T", range: "A1:A1" });
+  assert.throws(() => t.addRow({ at: -1 }), /non-negative integer/);
+  assert.throws(() => t.addRow({ at: 1.5 }), /non-negative integer/);
 });
 
 test("CellRange: fromA1 and toA1 roundtrip for single row block", () => {
@@ -229,6 +261,160 @@ test("Worksheet: listCells includes only populated cells", () => {
   const keys = new Set(entries.map((e) => `${e.row}:${e.col}`));
   assert.ok(keys.has("2:0"));
   assert.ok(keys.has("0:3"));
+});
+
+test("Worksheet: addRow without at appends next free row index", () => {
+  const ws = new Worksheet({ name: "S" });
+  assert.equal(ws.addRow(), 0);
+  ws.setCellValue(0, 0, "a");
+  assert.equal(ws.addRow(), 1);
+  ws.setCellValue(2, 0, "b");
+  assert.equal(ws.addRow(), 3);
+});
+
+test("Worksheet: addRow with at shifts cells down", () => {
+  const ws = new Worksheet({ name: "S" });
+  ws.setCellValue(0, 0, "top");
+  ws.setCellValue(1, 0, "mid");
+  ws.setCellValue(1, 1, "mid2");
+  const inserted = ws.addRow({ at: 1 });
+  assert.equal(inserted, 1);
+  assert.equal(ws.getCell(0, 0).value, "top");
+  assert.equal(ws.getCell(1, 0).value, null);
+  assert.equal(ws.getCell(2, 0).value, "mid");
+  assert.equal(ws.getCell(2, 1).value, "mid2");
+});
+
+test("Worksheet: addRow with at updates table ranges", () => {
+  const ws = new Worksheet({ name: "S" });
+  ws.addTable({ name: "T", range: "A1:B3" });
+  ws.addRow({ at: 1 });
+  assert.equal(ws.getTable("T")?.range, "A1:B4");
+});
+
+test("Worksheet: addRow rejects invalid row index", () => {
+  const ws = new Worksheet({ name: "S" });
+  assert.throws(() => ws.addRow({ at: -1 }), /non-negative integer/);
+  assert.throws(() => ws.addRow({ at: 0.5 }), /non-negative integer/);
+});
+
+test("Worksheet: getCell rejects addresses outside Excel grid", () => {
+  const ws = new Worksheet({ name: "S" });
+  assert.throws(() => ws.getCell(EXCEL_MAX_ROW_0BASED + 1, 0), /Row index/);
+  assert.throws(() => ws.getCell(-1, 0), /Row index/);
+});
+
+test("Worksheet: addRow append throws when grid is full", () => {
+  const ws = new Worksheet({ name: "S" });
+  ws.setCellValue(EXCEL_MAX_ROW_0BASED, 0, "x");
+  assert.throws(() => ws.addRow(), /exceeds Excel maximum/);
+});
+
+test("Table: addRow append throws when bottom already at last row", () => {
+  const t = new Table({
+    name: "T",
+    range: `A${EXCEL_MAX_ROW_1BASED}:B${EXCEL_MAX_ROW_1BASED}`
+  });
+  assert.throws(() => t.addRow(), /cannot extend past row/);
+});
+
+test("Worksheet: addTableRow appends with array values", () => {
+  const ws = new Worksheet({ name: "S" });
+  ws.addTable({ name: "T", range: "A1:C2" });
+  const row = ws.addTableRow("T", { values: ["a", "b", "c"] });
+  assert.equal(row, 2);
+  assert.equal(ws.getCell(2, 0).value, "a");
+  assert.equal(ws.getCell(2, 1).value, "b");
+  assert.equal(ws.getCell(2, 2).value, "c");
+  assert.equal(ws.getTable("T")?.range, "A1:C3");
+});
+
+test("Worksheet: addTableRow appends with column offset map", () => {
+  const ws = new Worksheet({ name: "S" });
+  ws.addTable({ name: "T", range: "B2:D3" });
+  ws.addTableRow("T", { values: { 0: 1, 2: 3 } });
+  assert.equal(ws.getCell(3, 1).value, 1);
+  assert.equal(ws.getCell(3, 2).value, null);
+  assert.equal(ws.getCell(3, 3).value, 3);
+});
+
+test("Worksheet: addTableRow insert at with values", () => {
+  const ws = new Worksheet({ name: "S" });
+  ws.addTable({ name: "T", range: "A1:C3" });
+  ws.setCellValue(1, 0, "old0");
+  ws.addTableRow("T", { at: 1, values: ["n0", "n1", "n2"] });
+  assert.equal(ws.getCell(1, 0).value, "n0");
+  assert.equal(ws.getCell(2, 0).value, "old0");
+});
+
+test("Worksheet: addTableRow throws for unknown table", () => {
+  const ws = new Worksheet({ name: "S" });
+  assert.throws(() => ws.addTableRow("nope", {}), /does not exist/);
+});
+
+test("Worksheet: addTableRow throws when at is outside table span", () => {
+  const ws = new Worksheet({ name: "S" });
+  ws.addTable({ name: "T", range: "A10:C12" });
+  assert.throws(() => ws.addTableRow("T", { at: 5, values: [1, 2, 3] }), /must satisfy/);
+});
+
+test("Worksheet: addTableRow record rejects out-of-range column offset", () => {
+  const ws = new Worksheet({ name: "S" });
+  ws.addTable({ name: "T", range: "A1:B2" });
+  assert.throws(() => ws.addTableRow("T", { values: { 0: 1, 2: 3 } }), /column offset/);
+});
+
+test("Worksheet: addRow shifts unqualified formula references", () => {
+  const ws = new Worksheet({ name: "S" });
+  ws.getCell(0, 0).setFormula("A2+B3", 0);
+  ws.addRow({ at: 1 });
+  assert.equal(ws.getCell(0, 0).formula?.expression, "A3+B4");
+});
+
+test("Worksheet: addRow shifts qualified refs for same sheet only", () => {
+  const ws = new Worksheet({ name: "S1" });
+  ws.getCell(0, 0).setFormula("S1!B2+Other!B2", 0);
+  ws.addRow({ at: 1 });
+  assert.equal(ws.getCell(0, 0).formula?.expression, "S1!B3+Other!B2");
+});
+
+test("Worksheet: addRow shifts full row ranges in formulas", () => {
+  const ws = new Worksheet({ name: "S" });
+  ws.getCell(0, 0).setFormula("SUM(2:4)", 0);
+  ws.addRow({ at: 1 });
+  assert.equal(ws.getCell(0, 0).formula?.expression, "SUM(3:5)");
+});
+
+test("Worksheet: addRow skips external workbook qualified refs", () => {
+  const ws = new Worksheet({ name: "S1" });
+  ws.getCell(0, 0).setFormula("[1]S1!A2+S1!A2", 0);
+  ws.addRow({ at: 1 });
+  assert.equal(ws.getCell(0, 0).formula?.expression, "[1]S1!A2+S1!A3");
+});
+
+test("Worksheet: addRow shifts refs in moved formula cells", () => {
+  const ws = new Worksheet({ name: "S" });
+  ws.getCell(3, 0).setFormula("A4", 1);
+  ws.addRow({ at: 2 });
+  assert.equal(ws.getCell(4, 0).formula?.expression, "A5");
+});
+
+test("Worksheet: addRow updates chart series and anchor for same sheet", () => {
+  const ws = new Worksheet({ name: "Sheet1" });
+  ws.addChart({
+    id: "c1",
+    type: "line",
+    series: [{ categories: "Sheet1!A2:A3", values: "B2:B10", name: "Other!C1" }]
+  });
+  const ch = ws.getChart("c1");
+  ch.setPosition({ from: { row: 2, col: 0 }, to: { row: 10, col: 2 } });
+  ws.addRow({ at: 2 });
+  const updated = ws.getChart("c1");
+  assert.equal(updated?.series[0].categories, "Sheet1!A2:A4");
+  assert.equal(updated?.series[0].values, "B2:B11");
+  assert.equal(updated?.series[0].name, "Other!C1");
+  assert.deepEqual(updated?.position.from, { row: 3, col: 0 });
+  assert.deepEqual(updated?.position.to, { row: 11, col: 2 });
 });
 
 test("Worksheet: addTable duplicate throws", () => {

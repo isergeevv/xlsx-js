@@ -14,6 +14,7 @@ Early-stage implementation. Core domain models and XLSX read/write are available
   - Types: `dist/index.d.ts`
 - Class-based domain model:
   - `Workbook`, `Worksheet`, `Cell`, `Table`, `CellRange`
+  - `Worksheet.addRow` / `Table.addRow` / `Worksheet.addTableRow` (optional `values` for table rows); Excel grid limits enforced (`EXCEL_MAX_ROW_*`, `EXCEL_MAX_COL_*`)
   - `XlsxDocument`, `XlsxParser`, `XlsxWriter`
 - Buffer + path IO support (`load` from bytes/path, `serialize` to bytes, `writeToPath` to file path)
 - Roundtrip preservation of existing chart/drawing parts when loading and re-saving files

@@ -31,6 +31,29 @@ export interface TableOptions {
   totalsRow?: boolean;
 }
 
+/** Optional row placement for `Worksheet.addRow` and `Table.addRow`. */
+export interface AddRowOptions {
+  /**
+   * 0-based sheet row index: insert a new row before this index (existing cells at this row and below shift down).
+   * Omit to append after the last row that currently has cell data (no shifts; returns the next free row index).
+   */
+  at?: number;
+}
+
+/** Cell values for one table row: left-to-right array, or 0-based column offset within the table → value. */
+export type TableRowValues = CellPrimitive[] | Record<number, CellPrimitive>;
+
+/** Options for `Worksheet.addTableRow`. */
+export interface AddTableRowOptions {
+  /**
+   * 0-based sheet row: insert before this row (same as `Worksheet.addRow`), then write `values` on that row.
+   * Must fall within the table’s vertical span or immediately below it (`start.row <= at <= end.row + 1`).
+   */
+  at?: number;
+  /** Values for the new row within the table’s column span (see `TableRowValues`). */
+  values?: TableRowValues;
+}
+
 export type ChartType = "line" | "pie";
 
 export interface ChartSeriesOptions {

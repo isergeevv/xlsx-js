@@ -9,7 +9,16 @@ export { Chart } from "./models/Chart";
 export { Table } from "./models/Table";
 export { CellRange } from "./models/CellRange";
 
+export {
+  EXCEL_MAX_COL_0BASED,
+  EXCEL_MAX_COL_1BASED,
+  EXCEL_MAX_ROW_0BASED,
+  EXCEL_MAX_ROW_1BASED
+} from "./excelLimits";
+
 export type {
+  AddRowOptions,
+  AddTableRowOptions,
   CellAddress,
   CellFormula,
   CellPrimitive,
@@ -21,6 +30,7 @@ export type {
   LoadWorkbookOptions,
   SaveWorkbookOptions,
   TableOptions,
+  TableRowValues,
   WorkbookInput,
   WorkbookMetadata,
   WorksheetOptions

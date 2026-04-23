@@ -13,6 +13,7 @@ alwaysApply: true
 - Source files live under `src/`.
 - Prefer private class state over public mutable fields.
 - Private fields use underscore naming (example: `_name`) and are exposed through getters.
+- In classes that use `static` members: list every `static` method above the `constructor`, then instance methods (after fields, if fields are declared at the top of the class body).
 - Keep ESLint passing, including private member underscore naming rules.
 - Keep Prettier formatting consistent with repository `.prettierrc.json`.
 - Releases are tag-driven (`vX.Y.Z`) and publish to GitHub Packages with tag/version alignment.
