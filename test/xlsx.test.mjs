@@ -372,3 +372,48 @@ test("No-op roundtrip preserves chart series range and aggregate flag", async ()
 
   assert.equal(outChartXml, chartXml);
 });
+
+test("Chart authoring API creates line and pie charts", async () => {
+  const document = new XlsxDocument();
+  const workbook = document.createWorkbook();
+  const sheet = workbook.addWorksheet("Sheet1");
+  sheet.setCellValue(0, 0, "Category");
+  sheet.setCellValue(0, 1, "Value");
+  sheet.setCellValue(1, 0, "A");
+  sheet.setCellValue(1, 1, 10);
+  sheet.setCellValue(2, 0, "B");
+  sheet.setCellValue(2, 1, 20);
+
+  sheet.addChart({
+    id: "line-1",
+    type: "line",
+    title: "Line Chart",
+    series: [{ categories: "Sheet1!A2:A3", values: "Sheet1!B2:B3", name: "Series 1" }]
+  });
+  sheet.addChart({
+    id: "pie-1",
+    type: "pie",
+    title: "Pie Chart",
+    series: [{ categories: "Sheet1!A2:A3", values: "Sheet1!B2:B3", name: "Series 1" }]
+  });
+
+  const bytes = await document.save(workbook);
+  const zip = await JSZip.loadAsync(bytes);
+  const drawingXml = await zip.file("xl/drawings/drawing1.xml")?.async("string");
+  const chart1Xml = await zip.file("xl/charts/chart1.xml")?.async("string");
+  const chart2Xml = await zip.file("xl/charts/chart2.xml")?.async("string");
+  const sheetXml = await zip.file("xl/worksheets/sheet1.xml")?.async("string");
+
+  assert.ok(sheetXml?.includes("<drawing r:id=\"rIdXlsxJsDrawing1\"/>"));
+  assert.ok(drawingXml?.includes("<c:chart r:id=\"rIdChart1\"/>"));
+  assert.ok(drawingXml?.includes("<c:chart r:id=\"rIdChart2\"/>"));
+  assert.ok(chart1Xml?.includes("<c:lineChart>"));
+  assert.ok(chart2Xml?.includes("<c:pieChart>"));
+
+  const loaded = await document.load(bytes);
+  const loadedSheet = loaded.getWorksheet("Sheet1");
+  assert.ok(loadedSheet);
+  assert.equal(loadedSheet?.listCharts().length, 2);
+  assert.equal(loadedSheet?.getChart("line-1")?.type, "line");
+  assert.equal(loadedSheet?.getChart("pie-1")?.type, "pie");
+});

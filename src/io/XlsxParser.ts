@@ -29,6 +29,9 @@ export class XlsxParser {
       for (const table of sheetMeta?.tables ?? []) {
         worksheet.addTable(table);
       }
+      for (const chart of sheetMeta?.charts ?? []) {
+        worksheet.addChart(chart);
+      }
       if (options.preserveStyles) {
         for (const styleEntry of sheetMeta?.styles ?? []) {
           worksheet.getCell(styleEntry.row, styleEntry.col).setStyle(styleEntry.style);
@@ -150,7 +153,20 @@ export class XlsxParser {
 
   private _parseMetadata(raw: Uint8Array | undefined): {
     workbook: { createdBy?: string; modifiedBy?: string; createdAt?: Date; modifiedAt?: Date };
-    sheets: Map<string, { styles: Array<{ row: number; col: number; style: CellStyle }>; tables: Array<{ name: string; range: string; headerRow?: boolean; totalsRow?: boolean }> }>;
+    sheets: Map<
+      string,
+      {
+        styles: Array<{ row: number; col: number; style: CellStyle }>;
+        tables: Array<{ name: string; range: string; headerRow?: boolean; totalsRow?: boolean }>;
+        charts: Array<{
+          id: string;
+          type: "line" | "pie";
+          title?: string;
+          series: Array<{ values: string; categories?: string; name?: string }>;
+          position?: { from: { row: number; col: number }; to: { row: number; col: number } };
+        }>;
+      }
+    >;
   } {
     if (!raw) {
       return { workbook: {}, sheets: new Map() };
@@ -162,14 +178,35 @@ export class XlsxParser {
         name: string;
         styles?: Array<{ row: number; col: number; style: CellStyle }>;
         tables?: Array<{ name: string; range: string; headerRow?: boolean; totalsRow?: boolean }>;
+        charts?: Array<{
+          id: string;
+          type: "line" | "pie";
+          title?: string;
+          series: Array<{ values: string; categories?: string; name?: string }>;
+          position?: { from: { row: number; col: number }; to: { row: number; col: number } };
+        }>;
       }>;
     };
 
-    const sheets = new Map<string, { styles: Array<{ row: number; col: number; style: CellStyle }>; tables: Array<{ name: string; range: string; headerRow?: boolean; totalsRow?: boolean }> }>();
+    const sheets = new Map<
+      string,
+      {
+        styles: Array<{ row: number; col: number; style: CellStyle }>;
+        tables: Array<{ name: string; range: string; headerRow?: boolean; totalsRow?: boolean }>;
+        charts: Array<{
+          id: string;
+          type: "line" | "pie";
+          title?: string;
+          series: Array<{ values: string; categories?: string; name?: string }>;
+          position?: { from: { row: number; col: number }; to: { row: number; col: number } };
+        }>;
+      }
+    >();
     for (const sheet of parsed.sheets ?? []) {
       sheets.set(sheet.name, {
         styles: sheet.styles ?? [],
-        tables: sheet.tables ?? []
+        tables: sheet.tables ?? [],
+        charts: sheet.charts ?? []
       });
     }
 

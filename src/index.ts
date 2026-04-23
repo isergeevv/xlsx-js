@@ -5,6 +5,7 @@ export { XlsxWriter } from "./io/XlsxWriter";
 export { Workbook } from "./models/Workbook";
 export { Worksheet } from "./models/Worksheet";
 export { Cell } from "./models/Cell";
+export { Chart } from "./models/Chart";
 export { Table } from "./models/Table";
 export { CellRange } from "./models/CellRange";
 
@@ -13,6 +14,10 @@ export type {
   CellFormula,
   CellPrimitive,
   CellStyle,
+  ChartOptions,
+  ChartPosition,
+  ChartSeriesOptions,
+  ChartType,
   LoadWorkbookOptions,
   SaveWorkbookOptions,
   TableOptions,

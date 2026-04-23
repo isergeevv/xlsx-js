@@ -31,6 +31,27 @@ export interface TableOptions {
   totalsRow?: boolean;
 }
 
+export type ChartType = "line" | "pie";
+
+export interface ChartSeriesOptions {
+  values: string;
+  categories?: string;
+  name?: string;
+}
+
+export interface ChartPosition {
+  from: CellAddress;
+  to: CellAddress;
+}
+
+export interface ChartOptions {
+  id?: string;
+  type: ChartType;
+  title?: string;
+  series: ChartSeriesOptions[];
+  position?: ChartPosition;
+}
+
 export interface WorkbookMetadata {
   createdBy?: string;
   modifiedBy?: string;

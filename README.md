@@ -26,7 +26,8 @@ Early-stage implementation. Core domain models and XLSX read/write are available
 - **Preserved on roundtrip:** existing charts/drawings remain in place when a workbook is loaded and saved.
 - **No-op safety:** if you load and save without sheet edits, original chart XML (including series ranges/options) is preserved as-is.
 - **Empty sheet chart safety:** chart/drawing references are preserved even when source worksheets use `<sheetData/>`.
-- **Creation/editing:** creating brand new charts or editing chart definitions is **not implemented yet**.
+- **Authoring API:** create new `line` and `pie` charts with worksheet ranges and anchor positions.
+- **Extensible design:** chart type handling is structured to add more chart types incrementally.
 
 ## Installation
 

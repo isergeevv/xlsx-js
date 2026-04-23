@@ -1,6 +1,7 @@
 import { Cell } from "./Cell";
+import { Chart } from "./Chart";
 import { Table } from "./Table";
-import type { CellAddress, CellPrimitive, TableOptions, WorksheetOptions } from "../types";
+import type { CellAddress, CellPrimitive, ChartOptions, TableOptions, WorksheetOptions } from "../types";
 
 export interface WorksheetCellEntry {
   row: number;
@@ -13,6 +14,7 @@ export class Worksheet {
   private _name: string;
   private readonly _cells = new Map<string, Cell>();
   private readonly _tables = new Map<string, Table>();
+  private readonly _charts = new Map<string, Chart>();
   private _dirty: boolean;
 
   constructor(options: WorksheetOptions) {
@@ -95,6 +97,34 @@ export class Worksheet {
 
   public listTables(): Table[] {
     return [...this._tables.values()];
+  }
+
+  public addChart(options: ChartOptions): Chart {
+    const chart = new Chart(options, () => {
+      this._dirty = true;
+    });
+    if (this._charts.has(chart.id)) {
+      throw new Error(`Chart "${chart.id}" already exists in worksheet "${this.name}"`);
+    }
+    this._charts.set(chart.id, chart);
+    this._dirty = true;
+    return chart;
+  }
+
+  public getChart(id: string): Chart | undefined {
+    return this._charts.get(id);
+  }
+
+  public removeChart(id: string): boolean {
+    const removed = this._charts.delete(id);
+    if (removed) {
+      this._dirty = true;
+    }
+    return removed;
+  }
+
+  public listCharts(): Chart[] {
+    return [...this._charts.values()];
   }
 
   public listCells(): WorksheetCellEntry[] {
