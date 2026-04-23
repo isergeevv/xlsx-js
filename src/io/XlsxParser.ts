@@ -3,6 +3,7 @@ import { Worksheet } from "../models/Worksheet";
 import { readFile } from "node:fs/promises";
 import type { CellPrimitive, CellStyle, LoadWorkbookOptions, WorkbookInput } from "../types";
 import { decodeText, readZip } from "./internal/ZipArchive";
+import { setWorkbookSnapshot } from "./internal/WorkbookSnapshot";
 import { getAttribute, readTagText, xmlUnescape } from "./internal/Xml";
 
 export class XlsxParser {
@@ -13,10 +14,15 @@ export class XlsxParser {
     const workbookMeta = this._parseMetadata(zipEntries.get("xl/xlsxjs.json"));
     const workbook = new Workbook(workbookMeta.workbook);
 
-    const sheets = this._parseSheetEntries(workbookXml);
+    const workbookRelsXml = this._getTextEntry(zipEntries, "xl/_rels/workbook.xml.rels");
+    const sheets = this._parseSheetEntries(workbookXml, workbookRelsXml);
+    const sheetXmlByName = new Map<string, string>();
+    const sheetPathByName = new Map<string, string>();
     for (const sheet of sheets) {
       const worksheet = workbook.addWorksheet(sheet.name);
       const xml = this._getTextEntry(zipEntries, sheet.path);
+      sheetXmlByName.set(sheet.name, xml);
+      sheetPathByName.set(sheet.name, sheet.path);
       this._parseWorksheetXml(xml, worksheet);
 
       const sheetMeta = workbookMeta.sheets.get(sheet.name);
@@ -30,6 +36,12 @@ export class XlsxParser {
       }
     }
 
+    setWorkbookSnapshot(workbook, {
+      entries: zipEntries,
+      sheetPathByName,
+      sheetXmlByName
+    });
+
     return workbook;
   }
 
@@ -41,20 +53,38 @@ export class XlsxParser {
     return decodeText(raw);
   }
 
-  private _parseSheetEntries(workbookXml: string): Array<{ name: string; path: string }> {
+  private _parseSheetEntries(workbookXml: string, workbookRelsXml: string): Array<{ name: string; path: string }> {
+    const relPathById = this._parseWorkbookRelationshipTargets(workbookRelsXml);
     const sheets: Array<{ name: string; path: string }> = [];
     const sheetRegex = /<sheet\b[^>]*>/g;
     let match = sheetRegex.exec(workbookXml);
-    let index = 1;
     while (match) {
-      const name = getAttribute(match[0], "name");
-      if (name) {
-        sheets.push({ name, path: `xl/worksheets/sheet${index}.xml` });
-        index += 1;
+      const tag = match[0];
+      const name = getAttribute(tag, "name");
+      const relId = getAttribute(tag, "r:id");
+      const target = relId ? relPathById.get(relId) : undefined;
+      if (name && target) {
+        sheets.push({ name, path: `xl/${target}` });
       }
       match = sheetRegex.exec(workbookXml);
     }
     return sheets;
+  }
+
+  private _parseWorkbookRelationshipTargets(workbookRelsXml: string): Map<string, string> {
+    const mapping = new Map<string, string>();
+    const relRegex = /<Relationship\b[^>]*>/g;
+    let match = relRegex.exec(workbookRelsXml);
+    while (match) {
+      const tag = match[0];
+      const id = getAttribute(tag, "Id");
+      const target = getAttribute(tag, "Target");
+      if (id && target) {
+        mapping.set(id, target);
+      }
+      match = relRegex.exec(workbookRelsXml);
+    }
+    return mapping;
   }
 
   private _parseWorksheetXml(xml: string, worksheet: Worksheet): void {

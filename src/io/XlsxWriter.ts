@@ -2,28 +2,38 @@ import { Workbook } from "../models/Workbook";
 import { Worksheet } from "../models/Worksheet";
 import { writeFile } from "node:fs/promises";
 import type { CellPrimitive, CellStyle, SaveWorkbookOptions } from "../types";
+import { getWorkbookSnapshot } from "./internal/WorkbookSnapshot";
 import { encodeText, writeZip } from "./internal/ZipArchive";
 import { xmlEscape } from "./internal/Xml";
 
 export class XlsxWriter {
   public async write(workbook: Workbook, options: SaveWorkbookOptions = {}): Promise<Uint8Array> {
     const worksheets = workbook.listWorksheets();
-    const entries = [
-      { name: "[Content_Types].xml", data: encodeText(this._contentTypesXml(worksheets.length)) },
-      { name: "_rels/.rels", data: encodeText(this._rootRelsXml()) },
-      { name: "xl/workbook.xml", data: encodeText(this._workbookXml(worksheets)) },
-      { name: "xl/_rels/workbook.xml.rels", data: encodeText(this._workbookRelsXml(worksheets.length)) },
-      { name: "xl/xlsxjs.json", data: encodeText(this._metadataJson(workbook, options)) }
-    ];
+    const snapshot = getWorkbookSnapshot(workbook);
+    const sheetPathByName = snapshot?.sheetPathByName ?? new Map<string, string>();
+    const sheetXmlByName = snapshot?.sheetXmlByName ?? new Map<string, string>();
+    const baseEntries = new Map<string, Uint8Array>(snapshot?.entries ?? []);
 
-    for (let index = 0; index < worksheets.length; index += 1) {
-      entries.push({
-        name: `xl/worksheets/sheet${index + 1}.xml`,
-        data: encodeText(this._worksheetXml(worksheets[index]))
-      });
+    const resolvedSheetPaths = this._resolveSheetPaths(worksheets, sheetPathByName);
+    for (const worksheet of worksheets) {
+      const path = resolvedSheetPaths.get(worksheet.name);
+      if (!path) {
+        continue;
+      }
+      const baseXml = sheetXmlByName.get(worksheet.name);
+      const xml = this._worksheetXml(worksheet, baseXml);
+      baseEntries.set(path, encodeText(xml));
     }
 
-    return writeZip(entries);
+    if (!snapshot) {
+      baseEntries.set("[Content_Types].xml", encodeText(this._contentTypesXml(worksheets.length, resolvedSheetPaths)));
+      baseEntries.set("_rels/.rels", encodeText(this._rootRelsXml()));
+      baseEntries.set("xl/workbook.xml", encodeText(this._workbookXml(worksheets)));
+      baseEntries.set("xl/_rels/workbook.xml.rels", encodeText(this._workbookRelsXml(worksheets, resolvedSheetPaths)));
+    }
+    baseEntries.set("xl/xlsxjs.json", encodeText(this._metadataJson(workbook, options)));
+
+    return writeZip([...baseEntries.entries()].map(([name, data]) => ({ name, data })));
   }
 
   public async writeToPath(path: string, workbook: Workbook, options: SaveWorkbookOptions = {}): Promise<void> {
@@ -31,7 +41,7 @@ export class XlsxWriter {
     await writeFile(path, buffer);
   }
 
-  private _worksheetXml(sheet: Worksheet): string {
+  private _worksheetXml(sheet: Worksheet, baseXml?: string): string {
     const rows = new Map<number, Array<{ col: number; xml: string }>>();
     for (const cellEntry of sheet.listCells()) {
       const rowEntries = rows.get(cellEntry.row) ?? [];
@@ -47,9 +57,14 @@ export class XlsxWriter {
       })
       .join("");
 
+    const sheetDataXml = `<sheetData>${rowXml}</sheetData>`;
+    if (baseXml && /<sheetData[\s\S]*<\/sheetData>/.test(baseXml)) {
+      return baseXml.replace(/<sheetData[\s\S]*<\/sheetData>/, sheetDataXml);
+    }
+
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <sheetData>${rowXml}</sheetData>
+  ${sheetDataXml}
 </worksheet>`;
   }
 
@@ -129,10 +144,16 @@ export class XlsxWriter {
     return { ...style };
   }
 
-  private _contentTypesXml(sheetCount: number): string {
+  private _contentTypesXml(sheetCount: number, sheetPathByName: Map<string, string>): string {
     let overrides = `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>`;
-    for (let i = 1; i <= sheetCount; i += 1) {
-      overrides += `<Override PartName="/xl/worksheets/sheet${i}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`;
+    const worksheetPaths = new Set<string>([...sheetPathByName.values()]);
+    if (worksheetPaths.size === 0) {
+      for (let i = 1; i <= sheetCount; i += 1) {
+        worksheetPaths.add(`xl/worksheets/sheet${i}.xml`);
+      }
+    }
+    for (const path of worksheetPaths) {
+      overrides += `<Override PartName="/${path}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`;
     }
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
@@ -161,10 +182,13 @@ export class XlsxWriter {
 </workbook>`;
   }
 
-  private _workbookRelsXml(sheetCount: number): string {
+  private _workbookRelsXml(worksheets: Worksheet[], sheetPathByName: Map<string, string>): string {
     let relationships = "";
-    for (let i = 1; i <= sheetCount; i += 1) {
-      relationships += `<Relationship Id="rId${i}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i}.xml"/>`;
+    for (let i = 0; i < worksheets.length; i += 1) {
+      const sheet = worksheets[i];
+      const fullPath = sheetPathByName.get(sheet.name) ?? `xl/worksheets/sheet${i + 1}.xml`;
+      const target = fullPath.replace(/^xl\//, "");
+      relationships += `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="${target}"/>`;
     }
 
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -182,5 +206,29 @@ export class XlsxWriter {
       n = Math.floor((n - 1) / 26);
     }
     return out;
+  }
+
+  private _resolveSheetPaths(worksheets: Worksheet[], existing: Map<string, string>): Map<string, string> {
+    const used = new Set(existing.values());
+    const resolved = new Map<string, string>();
+    let nextIndex = 1;
+
+    for (const sheet of worksheets) {
+      const current = existing.get(sheet.name);
+      if (current) {
+        resolved.set(sheet.name, current);
+        continue;
+      }
+
+      while (used.has(`xl/worksheets/sheet${nextIndex}.xml`)) {
+        nextIndex += 1;
+      }
+      const generated = `xl/worksheets/sheet${nextIndex}.xml`;
+      used.add(generated);
+      resolved.set(sheet.name, generated);
+      nextIndex += 1;
+    }
+
+    return resolved;
   }
 }
