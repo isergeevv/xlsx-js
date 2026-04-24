@@ -12,6 +12,15 @@ export class CellRange {
     return new CellRange(CellRange._parseAddress(left), CellRange._parseAddress(right));
   }
 
+  /** One cell, e.g. `B4` (1-based row/column in Excel, stored as 0-based in {@link CellAddress}). */
+  public static addressFromA1(a1: string): CellAddress {
+    return CellRange._parseAddress(a1);
+  }
+
+  public static addressToA1(address: CellAddress): string {
+    return CellRange._addressToA1({ ...address });
+  }
+
   private static _parseAddress(address: string): CellAddress {
     const match = /^([A-Z]+)(\d+)$/i.exec(address.trim());
     if (!match) {

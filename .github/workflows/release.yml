@@ -45,12 +45,30 @@ jobs:
             exit 1
           fi
 
-      - name: Run quality checks
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # `dist/` is gitignored; the published tarball must be built in CI. package.json "files" lists `dist` only
+      - name: Build package (output to dist/)
+        run: npm run build
+
+      - name: Test (against dist/)
+        run: node --test test/**/*.test.mjs
+
+      - name: Verify npm pack includes dist
         run: |
-          npm run lint
-          npm run build
-          npm run typecheck
-          npm test
+          set -euo pipefail
+          test -d dist
+          test -f dist/index.js
+          TARBALL=$(npm pack 2>&1 | tail -n1)
+          tar -tzf "$TARBALL" | grep -q "package/dist/index.js"
+          tar -tzf "$TARBALL" | grep -q "package/dist/index.cjs"
+          tar -tzf "$TARBALL" | grep -q "package/dist/index.d.ts"
+          echo "Packing contains dist/ as required."
+          rm -f "$TARBALL"
 
       - name: Publish package to GitHub Packages
         run: npm publish

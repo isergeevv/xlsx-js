@@ -1,3 +1,4 @@
+import { CellRange } from "../models/CellRange";
 import { Workbook } from "../models/Workbook";
 import { Worksheet } from "../models/Worksheet";
 import { readFile } from "node:fs/promises";
@@ -34,7 +35,9 @@ export class XlsxParser {
       }
       if (options.preserveStyles) {
         for (const styleEntry of sheetMeta?.styles ?? []) {
-          worksheet.getCell(styleEntry.row, styleEntry.col).setStyle(styleEntry.style);
+          worksheet
+            .getCell(CellRange.addressToA1({ row: styleEntry.row, col: styleEntry.col }))
+            .setStyle(styleEntry.style);
         }
       }
       worksheet.markClean();
@@ -108,7 +111,7 @@ export class XlsxParser {
       const valueText = type === "inlineStr" ? readTagText(inner, "t") : readTagText(inner, "v");
       const primitive = this._parsePrimitive(valueText, type);
 
-      const cell = worksheet.getCell(row, col);
+      const cell = worksheet.getCell(CellRange.addressToA1({ row, col }));
       if (formula) {
         cell.setFormula(formula, primitive);
       } else {

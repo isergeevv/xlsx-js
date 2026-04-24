@@ -75,7 +75,12 @@ export class Worksheet {
     return this;
   }
 
-  public getCell(row: number, col: number): Cell {
+  public getCell(a1: string): Cell {
+    const { row, col } = CellRange.addressFromA1(a1);
+    return this._getOrCreateAt(row, col);
+  }
+
+  private _getOrCreateAt(row: number, col: number): Cell {
     Worksheet._assertAddressInGrid(row, col);
     const key = Worksheet._key({ row, col });
     const existing = this._cells.get(key);
@@ -91,7 +96,7 @@ export class Worksheet {
   }
 
   public setCellValue(row: number, col: number, value: CellPrimitive): this {
-    this.getCell(row, col).setValue(value);
+    this._getOrCreateAt(row, col).setValue(value);
     return this;
   }
 

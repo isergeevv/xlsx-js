@@ -48,7 +48,7 @@ test("Worksheet manages cells and tables", () => {
   assert.equal(worksheet.name, "Data");
 
   worksheet.setCellValue(0, 0, "hello");
-  assert.equal(worksheet.getCell(0, 0).value, "hello");
+  assert.equal(worksheet.getCell("A1").value, "hello");
   assert.equal(worksheet.deleteCell(0, 0), true);
   assert.equal(worksheet.deleteCell(0, 0), false);
 
@@ -114,8 +114,8 @@ test("XlsxDocument saves and loads workbook from buffer", async () => {
   const sheet = workbook.addWorksheet("Roundtrip");
   sheet.setCellValue(0, 0, "Hello");
   sheet.setCellValue(1, 0, 123);
-  sheet.getCell(2, 0).setFormula("A2*2", 246);
-  sheet.getCell(0, 1).setStyle({ bold: true, fontName: "Calibri" });
+  sheet.getCell("A3").setFormula("A2*2", 246);
+  sheet.getCell("B1").setStyle({ bold: true, fontName: "Calibri" });
 
   const bytes = await document.serialize(workbook, { includeStyles: true });
   assert.equal(bytes instanceof Uint8Array, true);
@@ -124,11 +124,11 @@ test("XlsxDocument saves and loads workbook from buffer", async () => {
   const loaded = await document.load(bytes, { preserveStyles: true });
   const loadedSheet = loaded.getWorksheet("Roundtrip");
   assert.ok(loadedSheet);
-  assert.equal(loadedSheet?.getCell(0, 0).value, "Hello");
-  assert.equal(loadedSheet?.getCell(1, 0).value, 123);
-  assert.equal(loadedSheet?.getCell(2, 0).formula?.expression, "A2*2");
-  assert.equal(loadedSheet?.getCell(2, 0).formula?.result, 246);
-  assert.equal(loadedSheet?.getCell(0, 1).style?.bold, true);
+  assert.equal(loadedSheet?.getCell("A1").value, "Hello");
+  assert.equal(loadedSheet?.getCell("A2").value, 123);
+  assert.equal(loadedSheet?.getCell("A3").formula?.expression, "A2*2");
+  assert.equal(loadedSheet?.getCell("A3").formula?.result, 246);
+  assert.equal(loadedSheet?.getCell("B1").style?.bold, true);
 });
 
 test("XlsxDocument saves and loads workbook by file path", async () => {
@@ -149,7 +149,7 @@ test("XlsxDocument saves and loads workbook by file path", async () => {
     const loaded = await document.load(filePath, { preserveStyles: true });
     const loadedSheet = loaded.getWorksheet("FilePath");
     assert.ok(loadedSheet);
-    assert.equal(loadedSheet?.getCell(0, 0).value, "FromPath");
+    assert.equal(loadedSheet?.getCell("A1").value, "FromPath");
     assert.equal(loadedSheet?.listTables().length, 1);
     assert.equal(loadedSheet?.getTable("Table1")?.range, "A1:B3");
   } finally {
