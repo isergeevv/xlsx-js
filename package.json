@@ -1,6 +1,6 @@
 {
   "name": "@isergeevv/xlsx-js",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "TypeScript XLSX parser, editor, and generator for Node.js.",
   "type": "module",
   "main": "./dist/index.cjs",
