@@ -1,18 +1,21 @@
+import { CellRange } from "./CellRange";
 import { EXCEL_MAX_ROW_0BASED } from "../excelLimits";
-import type { ChartOptions, ChartPosition, ChartSeriesOptions, ChartType } from "../types";
 import { shiftRefsInStringForRowInsert } from "../refs/shiftRowInsert";
+import type { CellAddress, ChartOptions, ChartPosition, ChartSeriesOptions, ChartType } from "../types";
 
-const DEFAULT_POSITION: ChartPosition = {
-  from: { row: 0, col: 4 },
-  to: { row: 20, col: 12 }
-};
+const DEFAULT_POSITION_ANCHOR: { from: CellAddress; to: CellAddress } = (() => {
+  const from = CellRange.addressFromA1("E1");
+  const to = CellRange.addressFromA1("M21");
+  return { from, to };
+})();
 
 export class Chart {
   private readonly _id: string;
   private _type: ChartType;
   private _title?: string;
   private _series: ChartSeriesOptions[];
-  private _position: ChartPosition;
+  private _from: CellAddress;
+  private _to: CellAddress;
   private readonly _onChange?: () => void;
 
   constructor(options: ChartOptions, onChange?: () => void) {
@@ -20,15 +23,13 @@ export class Chart {
     this._type = options.type;
     this._title = options.title;
     this._series = options.series.map((series) => ({ ...series }));
-    this._position = options.position
-      ? {
-          from: { ...options.position.from },
-          to: { ...options.position.to }
-        }
-      : {
-          from: { ...DEFAULT_POSITION.from },
-          to: { ...DEFAULT_POSITION.to }
-        };
+    if (options.position) {
+      this._from = { ...CellRange.addressFromA1(options.position.from) };
+      this._to = { ...CellRange.addressFromA1(options.position.to) };
+    } else {
+      this._from = { ...DEFAULT_POSITION_ANCHOR.from };
+      this._to = { ...DEFAULT_POSITION_ANCHOR.to };
+    }
     this._onChange = onChange;
   }
 
@@ -50,8 +51,8 @@ export class Chart {
 
   public get position(): ChartPosition {
     return {
-      from: { ...this._position.from },
-      to: { ...this._position.to }
+      from: CellRange.addressToA1(this._from),
+      to: CellRange.addressToA1(this._to)
     };
   }
 
@@ -68,30 +69,30 @@ export class Chart {
   }
 
   public setPosition(position: ChartPosition): this {
-    this._position = {
-      from: { ...position.from },
-      to: { ...position.to }
-    };
+    this._from = { ...CellRange.addressFromA1(position.from) };
+    this._to = { ...CellRange.addressFromA1(position.to) };
     this._onChange?.();
     return this;
   }
 
-  /** Shifts anchor rows and series range strings when a row is inserted on `worksheetName` before `insertBefore`. */
-  public applyRowInsertBefore(insertBefore: number, worksheetName: string): void {
+  /**
+   * Shifts anchor rows and series range strings when a row is inserted on `worksheetName` before
+   * the **row** of A1 `beforeA1` (the column in `beforeA1` is ignored).
+   */
+  public applyRowInsertBefore(beforeA1: string, worksheetName: string): void {
+    const insertBefore = CellRange.addressFromA1(beforeA1).row;
     let changed = false;
     const bumpRow = (row: number): number => (row >= insertBefore ? row + 1 : row);
-    const nextFromRow = bumpRow(this._position.from.row);
-    const nextToRow = bumpRow(this._position.to.row);
+    const nextFromRow = bumpRow(this._from.row);
+    const nextToRow = bumpRow(this._to.row);
     if (nextFromRow > EXCEL_MAX_ROW_0BASED || nextToRow > EXCEL_MAX_ROW_0BASED) {
       throw new Error(
         `Chart anchor row cannot exceed Excel maximum (${EXCEL_MAX_ROW_0BASED} zero-based, ${EXCEL_MAX_ROW_0BASED + 1} rows)`
       );
     }
-    if (nextFromRow !== this._position.from.row || nextToRow !== this._position.to.row) {
-      this._position = {
-        from: { row: nextFromRow, col: this._position.from.col },
-        to: { row: nextToRow, col: this._position.to.col }
-      };
+    if (nextFromRow !== this._from.row || nextToRow !== this._to.row) {
+      this._from = { row: nextFromRow, col: this._from.col };
+      this._to = { row: nextToRow, col: this._to.col };
       changed = true;
     }
 

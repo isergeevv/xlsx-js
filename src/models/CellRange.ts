@@ -21,6 +21,23 @@ export class CellRange {
     return CellRange._addressToA1({ ...address });
   }
 
+  constructor(start: CellAddress, end: CellAddress) {
+    this._start = start;
+    this._end = end;
+  }
+
+  public get start(): CellAddress {
+    return { ...this._start };
+  }
+
+  public get end(): CellAddress {
+    return { ...this._end };
+  }
+
+  public toA1(): string {
+    return `${CellRange._addressToA1(this._start)}:${CellRange._addressToA1(this._end)}`;
+  }
+
   private static _parseAddress(address: string): CellAddress {
     const match = /^([A-Z]+)(\d+)$/i.exec(address.trim());
     if (!match) {
@@ -55,22 +72,5 @@ export class CellRange {
       n = Math.floor((n - 1) / 26);
     }
     return out;
-  }
-
-  constructor(start: CellAddress, end: CellAddress) {
-    this._start = start;
-    this._end = end;
-  }
-
-  public get start(): CellAddress {
-    return { ...this._start };
-  }
-
-  public get end(): CellAddress {
-    return { ...this._end };
-  }
-
-  public toA1(): string {
-    return `${CellRange._addressToA1(this._start)}:${CellRange._addressToA1(this._end)}`;
   }
 }

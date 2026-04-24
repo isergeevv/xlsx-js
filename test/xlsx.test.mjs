@@ -47,10 +47,10 @@ test("Worksheet manages cells and tables", () => {
   const worksheet = new Worksheet({ name: "Data" });
   assert.equal(worksheet.name, "Data");
 
-  worksheet.setCellValue(0, 0, "hello");
+  worksheet.setCellValue("A1", "hello");
   assert.equal(worksheet.getCell("A1").value, "hello");
-  assert.equal(worksheet.deleteCell(0, 0), true);
-  assert.equal(worksheet.deleteCell(0, 0), false);
+  assert.equal(worksheet.deleteCell("A1"), true);
+  assert.equal(worksheet.deleteCell("A1"), false);
 
   const table = worksheet.addTable({ name: "T1", range: "A1:B2" });
   assert.equal(table.name, "T1");
@@ -112,8 +112,8 @@ test("XlsxDocument saves and loads workbook from buffer", async () => {
   const document = new XlsxDocument();
   const workbook = document.createWorkbook();
   const sheet = workbook.addWorksheet("Roundtrip");
-  sheet.setCellValue(0, 0, "Hello");
-  sheet.setCellValue(1, 0, 123);
+  sheet.setCellValue("A1", "Hello");
+  sheet.setCellValue("A2", 123);
   sheet.getCell("A3").setFormula("A2*2", 246);
   sheet.getCell("B1").setStyle({ bold: true, fontName: "Calibri" });
 
@@ -139,7 +139,7 @@ test("XlsxDocument saves and loads workbook by file path", async () => {
     const document = new XlsxDocument();
     const workbook = document.createWorkbook();
     const sheet = workbook.addWorksheet("FilePath");
-    sheet.setCellValue(0, 0, "FromPath");
+    sheet.setCellValue("A1", "FromPath");
     sheet.addTable({ name: "Table1", range: "A1:B3" });
 
     await document.writeToPath(filePath, workbook, { includeStyles: true });
@@ -215,7 +215,7 @@ test("Roundtrip preserves existing drawing/chart references", async () => {
   const sourceBytes = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
   const document = new XlsxDocument();
   const workbook = await document.load(sourceBytes);
-  workbook.getWorksheet("ChartSheet")?.setCellValue(0, 0, "after");
+  workbook.getWorksheet("ChartSheet")?.setCellValue("A1", "after");
   const outputBytes = await document.serialize(workbook);
 
   const outZip = await JSZip.loadAsync(outputBytes);
@@ -283,7 +283,7 @@ test("Roundtrip preserves drawing when source sheetData is self-closing", async 
   const sourceBytes = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
   const document = new XlsxDocument();
   const workbook = await document.load(sourceBytes);
-  workbook.getWorksheet("ChartSheet")?.setCellValue(0, 0, "after");
+  workbook.getWorksheet("ChartSheet")?.setCellValue("A1", "after");
   const outputBytes = await document.serialize(workbook);
 
   const outZip = await JSZip.loadAsync(outputBytes);
@@ -377,12 +377,12 @@ test("Chart authoring API creates line and pie charts", async () => {
   const document = new XlsxDocument();
   const workbook = document.createWorkbook();
   const sheet = workbook.addWorksheet("Sheet1");
-  sheet.setCellValue(0, 0, "Category");
-  sheet.setCellValue(0, 1, "Value");
-  sheet.setCellValue(1, 0, "A");
-  sheet.setCellValue(1, 1, 10);
-  sheet.setCellValue(2, 0, "B");
-  sheet.setCellValue(2, 1, 20);
+  sheet.setCellValue("A1", "Category");
+  sheet.setCellValue("B1", "Value");
+  sheet.setCellValue("A2", "A");
+  sheet.setCellValue("B2", 10);
+  sheet.setCellValue("A3", "B");
+  sheet.setCellValue("B3", 20);
 
   sheet.addChart({
     id: "line-1",

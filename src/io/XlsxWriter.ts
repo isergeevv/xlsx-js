@@ -1,6 +1,8 @@
+import { CellRange } from "../models/CellRange";
 import { Workbook } from "../models/Workbook";
 import { Chart } from "../models/Chart";
 import { Worksheet } from "../models/Worksheet";
+import type { ChartPosition } from "../types";
 import { writeFile } from "node:fs/promises";
 import type { CellPrimitive, CellStyle, SaveWorkbookOptions } from "../types";
 import { getWorkbookSnapshot } from "./internal/WorkbookSnapshot";
@@ -420,14 +422,12 @@ export class XlsxWriter {
 </Relationships>`;
   }
 
-  private _chartAnchorXml(
-    position: { from: { row: number; col: number }; to: { row: number; col: number } },
-    chartRelId: string,
-    chartIndex: number
-  ): string {
+  private _chartAnchorXml(position: ChartPosition, chartRelId: string, chartIndex: number): string {
+    const from = CellRange.addressFromA1(position.from);
+    const to = CellRange.addressFromA1(position.to);
     return `<xdr:twoCellAnchor>
-    <xdr:from><xdr:col>${position.from.col}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${position.from.row}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
-    <xdr:to><xdr:col>${position.to.col}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${position.to.row}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>
+    <xdr:from><xdr:col>${from.col}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${from.row}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
+    <xdr:to><xdr:col>${to.col}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${to.row}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>
     <xdr:graphicFrame macro="">
       <xdr:nvGraphicFramePr>
         <xdr:cNvPr id="${chartIndex}" name="Chart ${chartIndex}"/>

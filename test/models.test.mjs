@@ -5,7 +5,6 @@ import {
   Cell,
   CellRange,
   Chart,
-  EXCEL_MAX_ROW_0BASED,
   EXCEL_MAX_ROW_1BASED,
   Table,
   Workbook,
@@ -108,26 +107,26 @@ test("Table: addRow appends one row at bottom of range", () => {
 
 test("Table: addRow with at below table shifts range down", () => {
   const t = new Table({ name: "T", range: "B3:D5" });
-  t.addRow({ at: 1 });
+  t.addRow({ at: "A2" });
   assert.equal(t.range, "B4:D6");
 });
 
 test("Table: addRow with at inside table extends bottom", () => {
   const t = new Table({ name: "T", range: "A1:C4" });
-  t.addRow({ at: 2 });
+  t.addRow({ at: "A3" });
   assert.equal(t.range, "A1:C5");
 });
 
 test("Table: addRow with at after table leaves range unchanged", () => {
   const t = new Table({ name: "T", range: "A1:B2" });
-  t.addRow({ at: 10 });
+  t.addRow({ at: "A11" });
   assert.equal(t.range, "A1:B2");
 });
 
 test("Table: addRow rejects invalid row index", () => {
   const t = new Table({ name: "T", range: "A1:A1" });
-  assert.throws(() => t.addRow({ at: -1 }), /non-negative integer/);
-  assert.throws(() => t.addRow({ at: 1.5 }), /non-negative integer/);
+  assert.throws(() => t.addRow({ at: "A0" }), /non-negative integer/);
+  assert.throws(() => t.addRow({ at: "not-a1" }), /Invalid A1 address/);
 });
 
 test("CellRange: fromA1 and toA1 roundtrip for single row block", () => {
@@ -237,25 +236,25 @@ test("Worksheet: getCell returns same reference for same coordinates", () => {
 
 test("Worksheet: setCellValue chains and getCell reflects value", () => {
   const ws = new Worksheet({ name: "S" });
-  ws.setCellValue(0, 0, "a").setCellValue(0, 1, 2);
+  ws.setCellValue("A1", "a").setCellValue("B1", 2);
   assert.equal(ws.getCell("A1").value, "a");
   assert.equal(ws.getCell("B1").value, 2);
 });
 
 test("Worksheet: deleteCell removes storage until cell is touched again", () => {
   const ws = new Worksheet({ name: "S" });
-  ws.setCellValue(1, 1, 1);
-  assert.equal(ws.deleteCell(1, 1), true);
+  ws.setCellValue("B2", 1);
+  assert.equal(ws.deleteCell("B2"), true);
   assert.equal(ws.listCells().some((e) => e.row === 1 && e.col === 1), false);
   const cell = ws.getCell("B2");
   assert.equal(cell.value, null);
-  assert.equal(ws.deleteCell(1, 1), true);
+  assert.equal(ws.deleteCell("B2"), true);
 });
 
 test("Worksheet: listCells includes only populated cells", () => {
   const ws = new Worksheet({ name: "S" });
-  ws.setCellValue(2, 0, "x");
-  ws.setCellValue(0, 3, "y");
+  ws.setCellValue("A3", "x");
+  ws.setCellValue("D1", "y");
   const entries = ws.listCells();
   assert.equal(entries.length, 2);
   const keys = new Set(entries.map((e) => `${e.row}:${e.col}`));
@@ -266,18 +265,18 @@ test("Worksheet: listCells includes only populated cells", () => {
 test("Worksheet: addRow without at appends next free row index", () => {
   const ws = new Worksheet({ name: "S" });
   assert.equal(ws.addRow(), 0);
-  ws.setCellValue(0, 0, "a");
+  ws.setCellValue("A1", "a");
   assert.equal(ws.addRow(), 1);
-  ws.setCellValue(2, 0, "b");
+  ws.setCellValue("A3", "b");
   assert.equal(ws.addRow(), 3);
 });
 
 test("Worksheet: addRow with at shifts cells down", () => {
   const ws = new Worksheet({ name: "S" });
-  ws.setCellValue(0, 0, "top");
-  ws.setCellValue(1, 0, "mid");
-  ws.setCellValue(1, 1, "mid2");
-  const inserted = ws.addRow({ at: 1 });
+  ws.setCellValue("A1", "top");
+  ws.setCellValue("A2", "mid");
+  ws.setCellValue("B2", "mid2");
+  const inserted = ws.addRow({ at: "A2" });
   assert.equal(inserted, 1);
   assert.equal(ws.getCell("A1").value, "top");
   assert.equal(ws.getCell("A2").value, null);
@@ -288,14 +287,14 @@ test("Worksheet: addRow with at shifts cells down", () => {
 test("Worksheet: addRow with at updates table ranges", () => {
   const ws = new Worksheet({ name: "S" });
   ws.addTable({ name: "T", range: "A1:B3" });
-  ws.addRow({ at: 1 });
+  ws.addRow({ at: "A2" });
   assert.equal(ws.getTable("T")?.range, "A1:B4");
 });
 
 test("Worksheet: addRow rejects invalid row index", () => {
   const ws = new Worksheet({ name: "S" });
-  assert.throws(() => ws.addRow({ at: -1 }), /non-negative integer/);
-  assert.throws(() => ws.addRow({ at: 0.5 }), /non-negative integer/);
+  assert.throws(() => ws.addRow({ at: "A0" }), /non-negative integer/);
+  assert.throws(() => ws.addRow({ at: "nope" }), /Invalid A1 address/);
 });
 
 test("Worksheet: getCell rejects addresses outside Excel grid", () => {
@@ -306,7 +305,7 @@ test("Worksheet: getCell rejects addresses outside Excel grid", () => {
 
 test("Worksheet: addRow append throws when grid is full", () => {
   const ws = new Worksheet({ name: "S" });
-  ws.setCellValue(EXCEL_MAX_ROW_0BASED, 0, "x");
+  ws.setCellValue(`A${EXCEL_MAX_ROW_1BASED}`, "x");
   assert.throws(() => ws.addRow(), /exceeds Excel maximum/);
 });
 
@@ -341,8 +340,8 @@ test("Worksheet: addTableRow appends with column offset map", () => {
 test("Worksheet: addTableRow insert at with values", () => {
   const ws = new Worksheet({ name: "S" });
   ws.addTable({ name: "T", range: "A1:C3" });
-  ws.setCellValue(1, 0, "old0");
-  ws.addTableRow("T", { at: 1, values: ["n0", "n1", "n2"] });
+  ws.setCellValue("A2", "old0");
+  ws.addTableRow("T", { at: "A2", values: ["n0", "n1", "n2"] });
   assert.equal(ws.getCell("A2").value, "n0");
   assert.equal(ws.getCell("A3").value, "old0");
 });
@@ -355,7 +354,7 @@ test("Worksheet: addTableRow throws for unknown table", () => {
 test("Worksheet: addTableRow throws when at is outside table span", () => {
   const ws = new Worksheet({ name: "S" });
   ws.addTable({ name: "T", range: "A10:C12" });
-  assert.throws(() => ws.addTableRow("T", { at: 5, values: [1, 2, 3] }), /must satisfy/);
+  assert.throws(() => ws.addTableRow("T", { at: "A6", values: [1, 2, 3] }), /must satisfy/);
 });
 
 test("Worksheet: addTableRow record rejects out-of-range column offset", () => {
@@ -367,35 +366,35 @@ test("Worksheet: addTableRow record rejects out-of-range column offset", () => {
 test("Worksheet: addRow shifts unqualified formula references", () => {
   const ws = new Worksheet({ name: "S" });
   ws.getCell("A1").setFormula("A2+B3", 0);
-  ws.addRow({ at: 1 });
+  ws.addRow({ at: "A2" });
   assert.equal(ws.getCell("A1").formula?.expression, "A3+B4");
 });
 
 test("Worksheet: addRow shifts qualified refs for same sheet only", () => {
   const ws = new Worksheet({ name: "S1" });
   ws.getCell("A1").setFormula("S1!B2+Other!B2", 0);
-  ws.addRow({ at: 1 });
+  ws.addRow({ at: "A2" });
   assert.equal(ws.getCell("A1").formula?.expression, "S1!B3+Other!B2");
 });
 
 test("Worksheet: addRow shifts full row ranges in formulas", () => {
   const ws = new Worksheet({ name: "S" });
   ws.getCell("A1").setFormula("SUM(2:4)", 0);
-  ws.addRow({ at: 1 });
+  ws.addRow({ at: "A2" });
   assert.equal(ws.getCell("A1").formula?.expression, "SUM(3:5)");
 });
 
 test("Worksheet: addRow skips external workbook qualified refs", () => {
   const ws = new Worksheet({ name: "S1" });
   ws.getCell("A1").setFormula("[1]S1!A2+S1!A2", 0);
-  ws.addRow({ at: 1 });
+  ws.addRow({ at: "A2" });
   assert.equal(ws.getCell("A1").formula?.expression, "[1]S1!A2+S1!A3");
 });
 
 test("Worksheet: addRow shifts refs in moved formula cells", () => {
   const ws = new Worksheet({ name: "S" });
   ws.getCell("A4").setFormula("A4", 1);
-  ws.addRow({ at: 2 });
+  ws.addRow({ at: "A3" });
   assert.equal(ws.getCell("A5").formula?.expression, "A5");
 });
 
@@ -407,14 +406,14 @@ test("Worksheet: addRow updates chart series and anchor for same sheet", () => {
     series: [{ categories: "Sheet1!A2:A3", values: "B2:B10", name: "Other!C1" }]
   });
   const ch = ws.getChart("c1");
-  ch.setPosition({ from: { row: 2, col: 0 }, to: { row: 10, col: 2 } });
-  ws.addRow({ at: 2 });
+  ch.setPosition({ from: "A3", to: "C11" });
+  ws.addRow({ at: "A3" });
   const updated = ws.getChart("c1");
   assert.equal(updated?.series[0].categories, "Sheet1!A2:A4");
   assert.equal(updated?.series[0].values, "B2:B11");
   assert.equal(updated?.series[0].name, "Other!C1");
-  assert.deepEqual(updated?.position.from, { row: 3, col: 0 });
-  assert.deepEqual(updated?.position.to, { row: 11, col: 2 });
+  assert.equal(updated?.position.from, "A4");
+  assert.equal(updated?.position.to, "C12");
 });
 
 test("Worksheet: addTable duplicate throws", () => {
@@ -461,7 +460,7 @@ test("Worksheet: chart get remove list", () => {
 
 test("Worksheet: markClean clears dirty after load simulation", () => {
   const ws = new Worksheet({ name: "S" });
-  ws.setCellValue(0, 0, 1);
+  ws.setCellValue("A1", 1);
   assert.equal(ws.isDirty, true);
   ws.markClean();
   assert.equal(ws.isDirty, false);
@@ -482,19 +481,19 @@ test("Chart: fixed id from options", () => {
 
 test("Chart: default position matches documented anchor", () => {
   const c = new Chart({ type: "line", series: [{ values: "A1:A2" }] });
-  assert.deepEqual(c.position.from, { row: 0, col: 4 });
-  assert.deepEqual(c.position.to, { row: 20, col: 12 });
+  assert.equal(c.position.from, "E1");
+  assert.equal(c.position.to, "M21");
 });
 
 test("Chart: custom position is stored", () => {
   const pos = {
-    from: { row: 1, col: 1 },
-    to: { row: 10, col: 5 }
+    from: "B2",
+    to: "F11"
   };
   const c = new Chart({ type: "line", series: [{ values: "A1:A2" }], position: pos });
   assert.deepEqual(c.position, pos);
-  pos.from.row = 99;
-  assert.equal(c.position.from.row, 1);
+  pos.from = "X9";
+  assert.equal(c.position.from, "B2");
 });
 
 test("Chart: series getter returns copies", () => {
@@ -510,8 +509,8 @@ test("Chart: series getter returns copies", () => {
 test("Chart: setTitle setSeries setPosition chain", () => {
   const c = new Chart({ type: "pie", series: [{ values: "A1:A2" }] });
   const out = c.setTitle("T").setSeries([{ values: "C1:C5" }]).setPosition({
-    from: { row: 0, col: 0 },
-    to: { row: 5, col: 5 }
+    from: "A1",
+    to: "F6"
   });
   assert.equal(out, c);
   assert.equal(c.title, "T");
@@ -525,7 +524,7 @@ test("Chart: onChange fires for mutators", () => {
   });
   c.setTitle("b");
   c.setSeries([{ values: "B1:B2" }]);
-  c.setPosition({ from: { row: 0, col: 0 }, to: { row: 1, col: 1 } });
+  c.setPosition({ from: "A1", to: "B2" });
   assert.equal(n, 3);
 });
 
@@ -533,9 +532,9 @@ test("integration: workbook with multiple sheets tables and cells", () => {
   const wb = new Workbook({ createdBy: "integration" });
   const s1 = wb.addWorksheet("Data");
   const s2 = wb.addWorksheet("Summary");
-  s1.setCellValue(0, 0, "key");
+  s1.setCellValue("A1", "key");
   s1.addTable({ name: "tbl", range: "A1:D10", headerRow: true, totalsRow: true });
-  s2.setCellValue(0, 0, new Date("2024-06-15"));
+  s2.setCellValue("A1", new Date("2024-06-15"));
   assert.equal(wb.listWorksheets().length, 2);
   assert.equal(s1.listTables().length, 1);
   assert.ok(s2.getCell("A1").value instanceof Date);
@@ -551,7 +550,7 @@ test("Worksheet: getCell without mutation does not mark dirty", () => {
 test("Worksheet: setCellValue on new cell marks dirty", () => {
   const ws = new Worksheet({ name: "S" });
   ws.markClean();
-  ws.setCellValue(0, 0, "x");
+  ws.setCellValue("A1", "x");
   assert.equal(ws.isDirty, true);
 });
 

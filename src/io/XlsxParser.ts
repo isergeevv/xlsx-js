@@ -2,7 +2,7 @@ import { CellRange } from "../models/CellRange";
 import { Workbook } from "../models/Workbook";
 import { Worksheet } from "../models/Worksheet";
 import { readFile } from "node:fs/promises";
-import type { CellPrimitive, CellStyle, LoadWorkbookOptions, WorkbookInput } from "../types";
+import type { CellPrimitive, CellStyle, ChartOptions, LoadWorkbookOptions, WorkbookInput } from "../types";
 import { decodeText, readZip } from "./internal/ZipArchive";
 import { setWorkbookSnapshot } from "./internal/WorkbookSnapshot";
 import { getAttribute, readTagText, xmlUnescape } from "./internal/Xml";
@@ -31,7 +31,7 @@ export class XlsxParser {
         worksheet.addTable(table);
       }
       for (const chart of sheetMeta?.charts ?? []) {
-        worksheet.addChart(chart);
+        worksheet.addChart(this._chartOptionsFromSnapshot(chart));
       }
       if (options.preserveStyles) {
         for (const styleEntry of sheetMeta?.styles ?? []) {
@@ -52,6 +52,45 @@ export class XlsxParser {
     return workbook;
   }
 
+  private _chartOptionsFromSnapshot(raw: {
+    id?: string;
+    type: "line" | "pie";
+    title?: string;
+    series: Array<{ values: string; categories?: string; name?: string }>;
+    position?: unknown;
+  }): ChartOptions {
+    return {
+      id: raw.id,
+      type: raw.type,
+      title: raw.title,
+      series: raw.series,
+      position: this._chartPositionFromSnapshot(raw.position)
+    };
+  }
+
+  private _chartPositionFromSnapshot(p: unknown): ChartOptions["position"] {
+    if (p == null) {
+      return undefined;
+    }
+    const o = p as { from: unknown; to: unknown };
+    if (typeof o.from === "string" && typeof o.to === "string") {
+      return { from: o.from, to: o.to };
+    }
+    const from = o.from as { row: number; col: number } | undefined;
+    const to = o.to as { row: number; col: number } | undefined;
+    if (
+      from != null &&
+      to != null &&
+      typeof from.row === "number" &&
+      typeof from.col === "number" &&
+      typeof to.row === "number" &&
+      typeof to.col === "number"
+    ) {
+      return { from: CellRange.addressToA1(from), to: CellRange.addressToA1(to) };
+    }
+    return undefined;
+  }
+
   private _getTextEntry(entries: Map<string, Uint8Array>, name: string): string {
     const raw = entries.get(name);
     if (!raw) {
@@ -62,7 +101,7 @@ export class XlsxParser {
 
   private _parseSheetEntries(workbookXml: string, workbookRelsXml: string): Array<{ name: string; path: string }> {
     const relPathById = this._parseWorkbookRelationshipTargets(workbookRelsXml);
-    const sheets: Array<{ name: string; path: string }> = [];
+    const sheetList: Array<{ name: string; path: string }> = [];
     const sheetRegex = /<sheet\b[^>]*>/g;
     let match = sheetRegex.exec(workbookXml);
     while (match) {
@@ -71,11 +110,11 @@ export class XlsxParser {
       const relId = getAttribute(tag, "r:id");
       const target = relId ? relPathById.get(relId) : undefined;
       if (name && target) {
-        sheets.push({ name, path: `xl/${target}` });
+        sheetList.push({ name, path: `xl/${target}` });
       }
       match = sheetRegex.exec(workbookXml);
     }
-    return sheets;
+    return sheetList;
   }
 
   private _parseWorkbookRelationshipTargets(workbookRelsXml: string): Map<string, string> {
@@ -141,13 +180,13 @@ export class XlsxParser {
   }
 
   private _fromA1(reference: string): { row: number; col: number } {
-    const match = /^([A-Z]+)(\d+)$/i.exec(reference);
-    if (!match) {
+    const m = /^([A-Z]+)(\d+)$/i.exec(reference);
+    if (!m) {
       throw new Error(`Invalid cell reference ${reference}`);
     }
-    const row = Number(match[2]) - 1;
+    const row = Number(m[2]) - 1;
     let col = 0;
-    const colText = match[1].toUpperCase();
+    const colText = m[1].toUpperCase();
     for (let i = 0; i < colText.length; i += 1) {
       col = col * 26 + (colText.charCodeAt(i) - 64);
     }
@@ -166,7 +205,7 @@ export class XlsxParser {
           type: "line" | "pie";
           title?: string;
           series: Array<{ values: string; categories?: string; name?: string }>;
-          position?: { from: { row: number; col: number }; to: { row: number; col: number } };
+          position?: unknown;
         }>;
       }
     >;
@@ -186,7 +225,7 @@ export class XlsxParser {
           type: "line" | "pie";
           title?: string;
           series: Array<{ values: string; categories?: string; name?: string }>;
-          position?: { from: { row: number; col: number }; to: { row: number; col: number } };
+          position?: unknown;
         }>;
       }>;
     };
@@ -201,7 +240,7 @@ export class XlsxParser {
           type: "line" | "pie";
           title?: string;
           series: Array<{ values: string; categories?: string; name?: string }>;
-          position?: { from: { row: number; col: number }; to: { row: number; col: number } };
+          position?: unknown;
         }>;
       }
     >();

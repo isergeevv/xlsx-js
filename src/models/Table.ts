@@ -72,7 +72,7 @@ export class Table {
       return this;
     }
 
-    const at = options.at;
+    const at = CellRange.addressFromA1(options.at).row;
     if (!Number.isInteger(at) || at < 0) {
       throw new Error("Row index must be a non-negative integer");
     }

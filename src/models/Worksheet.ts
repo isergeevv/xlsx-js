@@ -29,23 +29,6 @@ export class Worksheet {
   private readonly _charts = new Map<string, Chart>();
   private _dirty: boolean;
 
-  private static _key(address: CellAddress): string {
-    return `${address.row}:${address.col}`;
-  }
-
-  private static _assertAddressInGrid(row: number, col: number): void {
-    if (!Number.isInteger(row) || row < 0 || row > EXCEL_MAX_ROW_0BASED) {
-      throw new Error(
-        `Row index must be an integer in [0, ${EXCEL_MAX_ROW_0BASED}] (${EXCEL_MAX_ROW_0BASED + 1} rows max)`
-      );
-    }
-    if (!Number.isInteger(col) || col < 0 || col > EXCEL_MAX_COL_0BASED) {
-      throw new Error(
-        `Column index must be an integer in [0, ${EXCEL_MAX_COL_0BASED}] (${EXCEL_MAX_COL_0BASED + 1} columns max)`
-      );
-    }
-  }
-
   constructor(options: WorksheetOptions) {
     this._id = options.id ?? `ws_${Date.now()}_${Math.floor(Math.random() * 1_000_000)}`;
     this._name = options.name;
@@ -80,27 +63,14 @@ export class Worksheet {
     return this._getOrCreateAt(row, col);
   }
 
-  private _getOrCreateAt(row: number, col: number): Cell {
-    Worksheet._assertAddressInGrid(row, col);
-    const key = Worksheet._key({ row, col });
-    const existing = this._cells.get(key);
-    if (existing) {
-      return existing;
-    }
-
-    const created = new Cell(null, () => {
-      this._dirty = true;
-    });
-    this._cells.set(key, created);
-    return created;
-  }
-
-  public setCellValue(row: number, col: number, value: CellPrimitive): this {
+  public setCellValue(a1: string, value: CellPrimitive): this {
+    const { row, col } = CellRange.addressFromA1(a1);
     this._getOrCreateAt(row, col).setValue(value);
     return this;
   }
 
-  public deleteCell(row: number, col: number): boolean {
+  public deleteCell(a1: string): boolean {
+    const { row, col } = CellRange.addressFromA1(a1);
     Worksheet._assertAddressInGrid(row, col);
     const deleted = this._cells.delete(Worksheet._key({ row, col }));
     if (deleted) {
@@ -110,15 +80,15 @@ export class Worksheet {
   }
 
   /**
-   * Adds a logical row: either appends after the last used row (no cell moves), or inserts before `at` and shifts
-   * existing cells at `at` and below down by one. When inserting, table ranges, chart anchors/series strings, and
-   * formula text on this sheet are adjusted for the new row (best-effort A1 / row-range rewriting, not a full formula parse).
-   * Row and column indices must stay within the Excel grid (see `EXCEL_MAX_ROW_0BASED` / `EXCEL_MAX_COL_0BASED`).
+   * Adds a logical row: either appends after the last used row (no cell moves), or inserts before the row
+   * given by `options.at` (A1; column ignored) and shifts existing cells at that row and below down by one. When
+   * inserting, table ranges, chart anchors/series strings, and formula text on this sheet are adjusted for the
+   * new row (best-effort A1 / row-range rewriting, not a full formula parse).
    * @returns The 0-based row index of the new empty row.
    */
   public addRow(options?: AddRowOptions): number {
     if (options?.at !== undefined) {
-      const at = options.at;
+      const at = CellRange.addressFromA1(options.at).row;
       if (!Number.isInteger(at) || at < 0) {
         throw new Error("Row index must be a non-negative integer");
       }
@@ -142,11 +112,11 @@ export class Worksheet {
       }
 
       for (const table of this._tables.values()) {
-        table.addRow({ at });
+        table.addRow({ at: options.at });
       }
 
       for (const chart of this._charts.values()) {
-        chart.applyRowInsertBefore(at, this._name);
+        chart.applyRowInsertBefore(options.at, this._name);
       }
 
       for (const { cell } of this.listCells()) {
@@ -196,11 +166,11 @@ export class Worksheet {
     const colCount = ec - sc + 1;
 
     if (options?.at !== undefined) {
-      const at = options.at;
+      const at = CellRange.addressFromA1(options.at).row;
       if (at < sr || at > er + 1) {
         throw new Error(`Table row insert "at" (${at}) must satisfy ${sr} <= at <= ${er + 1} for this table`);
       }
-      this.addRow({ at });
+      this.addRow({ at: options.at });
       this._writeTableRowValues(at, sc, colCount, options.values);
       return at;
     }
@@ -218,10 +188,10 @@ export class Worksheet {
     if (this._tables.has(options.name)) {
       throw new Error(`Table "${options.name}" already exists in worksheet "${this.name}"`);
     }
-    const table = new Table(options);
-    this._tables.set(table.name, table);
+    const t = new Table(options);
+    this._tables.set(t.name, t);
     this._dirty = true;
-    return table;
+    return t;
   }
 
   public getTable(name: string): Table | undefined {
@@ -279,6 +249,21 @@ export class Worksheet {
     });
   }
 
+  private _getOrCreateAt(row: number, col: number): Cell {
+    Worksheet._assertAddressInGrid(row, col);
+    const key = Worksheet._key({ row, col });
+    const existing = this._cells.get(key);
+    if (existing) {
+      return existing;
+    }
+
+    const created = new Cell(null, () => {
+      this._dirty = true;
+    });
+    this._cells.set(key, created);
+    return created;
+  }
+
   private _writeTableRowValues(
     row: number,
     startCol: number,
@@ -291,7 +276,7 @@ export class Worksheet {
     if (Array.isArray(values)) {
       const n = Math.min(colCount, values.length);
       for (let i = 0; i < n; i += 1) {
-        this.setCellValue(row, startCol + i, values[i]);
+        this.setCellValue(CellRange.addressToA1({ row, col: startCol + i }), values[i]);
       }
       return;
     }
@@ -300,7 +285,24 @@ export class Worksheet {
       if (!Number.isInteger(offset) || offset < 0 || offset >= colCount) {
         throw new Error(`Table row value key "${key}" must be an integer column offset in [0, ${colCount - 1}]`);
       }
-      this.setCellValue(row, startCol + offset, v);
+      this.setCellValue(CellRange.addressToA1({ row, col: startCol + offset }), v);
+    }
+  }
+
+  private static _key(address: CellAddress): string {
+    return `${address.row}:${address.col}`;
+  }
+
+  private static _assertAddressInGrid(row: number, col: number): void {
+    if (!Number.isInteger(row) || row < 0 || row > EXCEL_MAX_ROW_0BASED) {
+      throw new Error(
+        `Row index must be an integer in [0, ${EXCEL_MAX_ROW_0BASED}] (${EXCEL_MAX_ROW_0BASED + 1} rows max)`
+      );
+    }
+    if (!Number.isInteger(col) || col < 0 || col > EXCEL_MAX_COL_0BASED) {
+      throw new Error(
+        `Column index must be an integer in [0, ${EXCEL_MAX_COL_0BASED}] (${EXCEL_MAX_COL_0BASED + 1} columns max)`
+      );
     }
   }
 }

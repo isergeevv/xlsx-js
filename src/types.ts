@@ -34,10 +34,11 @@ export interface TableOptions {
 /** Optional row placement for `Worksheet.addRow` and `Table.addRow`. */
 export interface AddRowOptions {
   /**
-   * 0-based sheet row index: insert a new row before this index (existing cells at this row and below shift down).
-   * Omit to append after the last row that currently has cell data (no shifts; returns the next free row index).
+   * Insert a new row **before** the **row** of this A1 cell (column is ignored). The cell must be a valid
+   * single-cell A1 address (e.g. `"A4"` or `"B4"`; both use row 3 as 0-based). Omit to append after the
+   * last row that currently has cell data (no shifts; returns the next free row index).
    */
-  at?: number;
+  at?: string;
 }
 
 /** Cell values for one table row: left-to-right array, or 0-based column offset within the table → value. */
@@ -46,10 +47,10 @@ export type TableRowValues = CellPrimitive[] | Record<number, CellPrimitive>;
 /** Options for `Worksheet.addTableRow`. */
 export interface AddTableRowOptions {
   /**
-   * 0-based sheet row: insert before this row (same as `Worksheet.addRow`), then write `values` on that row.
-   * Must fall within the table’s vertical span or immediately below it (`start.row <= at <= end.row + 1`).
+   * Same as `Worksheet.addRow`’s `at`: a single A1 address; the **row** (only) selects where to insert.
+   * Must fall within the table’s vertical span or immediately below it.
    */
-  at?: number;
+  at?: string;
   /** Values for the new row within the table’s column span (see `TableRowValues`). */
   values?: TableRowValues;
 }
@@ -63,8 +64,10 @@ export interface ChartSeriesOptions {
 }
 
 export interface ChartPosition {
-  from: CellAddress;
-  to: CellAddress;
+  /** Top-left of the chart anchor, e.g. `"E1"`. */
+  from: string;
+  /** Bottom-right of the chart anchor, e.g. `"M21"`. */
+  to: string;
 }
 
 export interface ChartOptions {
