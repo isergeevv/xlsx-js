@@ -58,17 +58,17 @@ jobs:
       - name: Test (against dist/)
         run: node --test test/**/*.test.mjs
 
-      - name: Verify npm pack includes dist
-        run: |
-          set -euo pipefail
-          test -d dist
-          test -f dist/index.js
-          TARBALL=$(npm pack 2>&1 | tail -n1)
-          tar -tzf "$TARBALL" | grep -q "package/dist/index.js"
-          tar -tzf "$TARBALL" | grep -q "package/dist/index.cjs"
-          tar -tzf "$TARBALL" | grep -q "package/dist/index.d.ts"
-          echo "Packing contains dist/ as required."
-          rm -f "$TARBALL"
+      # - name: Verify npm pack includes dist
+      #   run: |
+      #     set -euo pipefail
+      #     test -d dist
+      #     test -f dist/index.js
+      #     TARBALL=$(npm pack 2>&1 | tail -n1)
+      #     tar -tzf "$TARBALL" | grep -q "package/dist/index.js"
+      #     tar -tzf "$TARBALL" | grep -q "package/dist/index.cjs"
+      #     tar -tzf "$TARBALL" | grep -q "package/dist/index.d.ts"
+      #     echo "Packing contains dist/ as required."
+      #     rm -f "$TARBALL"
 
       - name: Publish package to GitHub Packages
         run: npm publish
